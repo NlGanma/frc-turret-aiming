@@ -7,15 +7,20 @@ package frc.robot.subsystems;
 import static frc.robot.Constants.TurretConstants.kClockwiseMotorDirection;
 import static frc.robot.Constants.TurretConstants.kMotorRotationsPerTurretRotation;
 import static frc.robot.Constants.TurretConstants.kPositionToleranceDegrees;
+import static frc.robot.Constants.TurretConstants.kTurretAimMaxOutput;
 import static frc.robot.Constants.TurretConstants.kTurretKd;
 import static frc.robot.Constants.TurretConstants.kTurretKi;
 import static frc.robot.Constants.TurretConstants.kTurretKp;
 import static frc.robot.Constants.TurretConstants.kTurretMotorCanId;
+import static frc.robot.Constants.TurretConstants.kTurretUnwindMaxOutput;
+
+import java.util.function.Supplier;
 
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -51,6 +56,30 @@ public class TurretSubsystem extends SubsystemBase {
         .until(() -> atTarget(targetMotorRotations));
   }
 
+  public Command aimAtFixedFieldTargetCommand(Supplier<Pose2d> robotPoseSupplier) {
+    PIDController controller = new PIDController(kTurretKp, kTurretKi, kTurretKd);
+    controller.setTolerance(getMotorToleranceRotations());
+
+    return runEnd(
+            () -> aimAtFixedFieldTarget(robotPoseSupplier.get(), controller),
+            m_turretMotor::stopMotor)
+        .beforeStarting(controller::reset);
+  }
+
+  private void aimAtFixedFieldTarget(Pose2d robotPose, PIDController controller) {
+    double currentTurretAngleDegrees = motorRotationsToTurretDegrees(m_turretEncoder.getPosition());
+    double targetTurretAngleDegrees =
+        TurretAiming.calculateTargetAngleDegrees(robotPose, currentTurretAngleDegrees);
+    double maxOutput =
+        TurretAiming.shouldUseUnwindOutput(currentTurretAngleDegrees, targetTurretAngleDegrees)
+            ? kTurretUnwindMaxOutput
+            : kTurretAimMaxOutput;
+
+    double targetMotorRotations =
+        kClockwiseMotorDirection * degreesToMotorRotations(targetTurretAngleDegrees);
+    driveTowardTarget(targetMotorRotations, maxOutput, controller);
+  }
+
   private void driveTowardTarget(
       double targetMotorRotations, double maxSpeed, PIDController controller) {
     double currentPosition = m_turretEncoder.getPosition();
@@ -71,6 +100,10 @@ public class TurretSubsystem extends SubsystemBase {
 
   private static double degreesToMotorRotations(double degrees) {
     return degrees / 360.0 * kMotorRotationsPerTurretRotation;
+  }
+
+  private static double motorRotationsToTurretDegrees(double motorRotations) {
+    return motorRotations / kClockwiseMotorDirection / kMotorRotationsPerTurretRotation * 360.0;
   }
 
   private static double getMotorToleranceRotations() {

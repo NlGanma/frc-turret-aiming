@@ -17,6 +17,7 @@ public final class Constants {
     public static final int kDriverControllerPort = 0;
   }
 
+  // This is the turret constants
   public static class TurretConstants {
     public static final int kTurretMotorCanId = 5;
     public static final double kMotorRotationsPerTurretRotation = 34.6;
@@ -25,5 +26,12 @@ public final class Constants {
     public static final double kTurretKp = 0.1285;
     public static final double kTurretKi = 0.0;
     public static final double kTurretKd = 0.0024;
+    public static final double kFixedTargetXInches = 0.0;
+    public static final double kFixedTargetYInches = 20.0;
+    public static final double kTurretZeroFieldHeadingDegrees = 90.0;
+    public static final double kTurretAimMaxOutput = 0.6;
+    public static final double kTurretUnwindMaxOutput = 1.0;
+    public static final double kTurretMinAngleDegrees = -360.0;
+    public static final double kTurretMaxAngleDegrees = 360.0;
   }
 }

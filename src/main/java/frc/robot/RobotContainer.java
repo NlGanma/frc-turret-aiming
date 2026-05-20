@@ -18,6 +18,7 @@ import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.ExampleSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -53,6 +54,8 @@ public class RobotContainer {
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
+    m_drivetrain.resetPose(new Pose2d());
+
     // Configure the trigger bindings
     configureBindings();
   }
@@ -76,6 +79,8 @@ public class RobotContainer {
                     .withVelocityY(
                         -m_driverController.getLeftX() * m_maxSpeed * m_driveDirectionMultiplier)
                     .withRotationalRate(-m_driverController.getRightX() * m_maxAngularRate)));
+    m_turretSubsystem.setDefaultCommand(
+        m_turretSubsystem.aimAtFixedFieldTargetCommand(m_drivetrain::getDrivePose2d));
 
     // Schedule `ExampleCommand` when `exampleCondition` changes to `true`
     new Trigger(m_exampleSubsystem::exampleCondition)

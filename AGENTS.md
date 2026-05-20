@@ -29,6 +29,7 @@ change.
   - `src/main/java/frc/robot/generated/TunerConstants.java`
   - `src/main/java/frc/robot/subsystems/CommandSwerveDrivetrain.java`
 - The chassis configuration mirrors `2026-Robot-Code-frankenbot`.
+- `RobotContainer` seeds drivetrain pose to `(0, 0, 0°)` at program startup.
 - Pigeon2 CAN ID: `1`
 - Front left: drive `1`, steer `2`, CANcoder `1`
 - Front right: drive `3`, steer `4`, CANcoder `2`
@@ -47,12 +48,22 @@ change.
 Command turnTurretDegrees(double degrees, int direction, double speed)
 ```
 
+- Default command:
+
+```java
+Command aimAtFixedFieldTargetCommand(Supplier<Pose2d> robotPoseSupplier)
+```
+
 - `degrees` means final turret-output degrees from the program-start zero position.
 - `direction` must be `+1` for clockwise or `-1` for counterclockwise.
 - `speed` must be greater than `0.0` and no more than `1.0`; it caps PID motor output.
 - The Spark MAX built-in relative encoder is zeroed once in the subsystem constructor.
 - Do not reset the encoder inside each move command unless the homing strategy changes.
 - The command stops the motor when it reaches tolerance or is interrupted.
+- The default turret command aims at the fixed field point `(0, 20 in)` using drivetrain pose.
+- Turret zero is assumed to face field `+Y`, so startup pose `(0, 0, 0°)` commands `0°`.
+- The cable-wrap travel range is `-360°` to `+360°`; when the nearest equivalent angle is outside
+  that range, the turret chooses the closest safe equivalent and unwinds quickly.
 
 ## Turret Hardware and Tuning
 
