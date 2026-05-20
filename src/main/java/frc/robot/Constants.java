@@ -22,8 +22,8 @@ public final class Constants {
     public static final double kMotorRotationsPerTurretRotation = 34.6;
     public static final double kClockwiseMotorDirection = 1.0;
     public static final double kPositionToleranceDegrees = 1.0;
-    public static final double kTurretKp = 0.11;
+    public static final double kTurretKp = 0.1285;
     public static final double kTurretKi = 0.0;
-    public static final double kTurretKd = 0;
+    public static final double kTurretKd = 0.0024;
   }
 }

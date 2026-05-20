@@ -17,8 +17,8 @@ public final class Autos {
 
   public static Command turnTurretNinetyDegreesAndBack(TurretSubsystem turretSubsystem) {
     return Commands.sequence(
-        turretSubsystem.turnTurretDegrees(90.0, 1, 0.5),
-        turretSubsystem.turnTurretDegrees(0.0, 1, 0.5));
+        turretSubsystem.turnTurretDegrees(90.0, 1, 0.6),
+        turretSubsystem.turnTurretDegrees(0.0, 1, 0.6));
   }
 
   private Autos() {
