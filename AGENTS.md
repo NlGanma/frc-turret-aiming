@@ -15,10 +15,13 @@ change.
 
 ## Current Robot Behavior
 
-- `RobotContainer.getAutonomousCommand()` runs the turret autonomous sequence.
-- The current autonomous sequence is `Autos.turnTurretNinetyDegreesAndBack(...)`.
-- Autonomous turns the turret gear `90` degrees clockwise from startup zero, then returns to `0`.
-- Current autonomous speed cap is `0.6`.
+- `RobotContainer.getAutonomousCommand()` runs the drivetrain odometry square test.
+- The current autonomous sequence is `Autos.driveFortyInchSquare(...)`.
+- Autonomous resets drivetrain pose to `(0, 0, 0°)`, drives a `40 in` by `40 in` field-centric
+  square through `(40, 0)`, `(40, 40)`, `(0, 40)`, and `(0, 0)`, then idles the drivetrain.
+- The square test publishes `SquareTest/Waypoint`, target X/Y inches, pose X/Y inches, and pose
+  heading to SmartDashboard.
+- Current square test speed cap is `24 in/s`.
 - Teleop default drive runs the CTRE swerve drivetrain field-centrically.
 - Driver controls match frankenbot: left stick translates, right stick X rotates, and B toggles
   translation inversion.
@@ -52,6 +55,8 @@ Command turnTurretDegrees(double degrees, int direction, double speed)
 
 ```java
 Command aimAtFixedFieldTargetCommand(Supplier<Pose2d> robotPoseSupplier)
+Command aimAtFixedFieldTargetCommand(
+    Supplier<Pose2d> robotPoseSupplier, Supplier<ChassisSpeeds> chassisSpeedsSupplier)
 ```
 
 - `degrees` means final turret-output degrees from the program-start zero position.
@@ -60,7 +65,11 @@ Command aimAtFixedFieldTargetCommand(Supplier<Pose2d> robotPoseSupplier)
 - The Spark MAX built-in relative encoder is zeroed once in the subsystem constructor.
 - Do not reset the encoder inside each move command unless the homing strategy changes.
 - The command stops the motor when it reaches tolerance or is interrupted.
-- The default turret command aims at the fixed field point `(0, 20 in)` using drivetrain pose.
+- The default turret command aims at the fixed field point `(0, 120 in)` using drivetrain pose.
+- The default turret command also uses drivetrain chassis speeds for moving-target velocity
+  feedforward and to avoid stopping inside tolerance while the target angle is still moving.
+- The default turret command publishes `Turret/PoseXInches`, `Turret/PoseYInches`,
+  `Turret/PoseHeadingDeg`, `Turret/TargetAngleDeg`, and `Turret/ErrorDeg` to SmartDashboard.
 - Turret zero is assumed to face field `+Y`, so startup pose `(0, 0, 0°)` commands `0°`.
 - The cable-wrap travel range is `-360°` to `+360°`; when the nearest equivalent angle is outside
   that range, the turret chooses the closest safe equivalent and unwinds quickly.
@@ -76,10 +85,14 @@ Constants live in `src/main/java/frc/robot/Constants.java`.
 - Gear ratio: `34.6` motor rotations per `1` turret rotation
 - Clockwise motor sign: `kClockwiseMotorDirection = 1.0`
 - Position tolerance: `1.0` turret degree
+- Continuous aim position tolerance: `0.25` turret degree
 - PID values:
   - `kTurretKp = 0.1285`
   - `kTurretKi = 0.0`
   - `kTurretKd = 0.0024`
+- Continuous aim velocity feedforward:
+  - `kTurretAimVelocityFeedforward = 0.0005`
+  - `kTurretMovingTargetVelocityThresholdDegreesPerSecond = 5.0`
 
 If the turret moves counterclockwise when commanded clockwise, flip `kClockwiseMotorDirection`
 instead of changing call sites.

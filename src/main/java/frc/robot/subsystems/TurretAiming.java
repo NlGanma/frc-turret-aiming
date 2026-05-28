@@ -7,6 +7,7 @@ import static frc.robot.Constants.TurretConstants.kTurretMinAngleDegrees;
 import static frc.robot.Constants.TurretConstants.kTurretZeroFieldHeadingDegrees;
 
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.util.Units;
 
 final class TurretAiming {
@@ -32,6 +33,33 @@ final class TurretAiming {
             - targetBearingDegrees;
 
     return chooseClosestSafeEquivalentDegrees(desiredAngleDegrees, currentTurretAngleDegrees);
+  }
+
+  static double calculateTargetAngularVelocityDegreesPerSecond(
+      Pose2d robotPose, ChassisSpeeds robotRelativeChassisSpeeds) {
+    double targetX = Units.inchesToMeters(kFixedTargetXInches);
+    double targetY = Units.inchesToMeters(kFixedTargetYInches);
+    double deltaX = targetX - robotPose.getX();
+    double deltaY = targetY - robotPose.getY();
+    double distanceSquared = deltaX * deltaX + deltaY * deltaY;
+
+    if (distanceSquared < kTargetDeadbandMeters * kTargetDeadbandMeters) {
+      return 0.0;
+    }
+
+    double headingCos = robotPose.getRotation().getCos();
+    double headingSin = robotPose.getRotation().getSin();
+    double fieldVelocityX =
+        robotRelativeChassisSpeeds.vxMetersPerSecond * headingCos
+            - robotRelativeChassisSpeeds.vyMetersPerSecond * headingSin;
+    double fieldVelocityY =
+        robotRelativeChassisSpeeds.vxMetersPerSecond * headingSin
+            + robotRelativeChassisSpeeds.vyMetersPerSecond * headingCos;
+    double targetBearingVelocityRadiansPerSecond =
+        (deltaY * fieldVelocityX - deltaX * fieldVelocityY) / distanceSquared;
+
+    return Math.toDegrees(
+        robotRelativeChassisSpeeds.omegaRadiansPerSecond - targetBearingVelocityRadiansPerSecond);
   }
 
   static double chooseClosestSafeEquivalentDegrees(

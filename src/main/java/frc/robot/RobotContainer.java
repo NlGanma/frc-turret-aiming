@@ -80,7 +80,8 @@ public class RobotContainer {
                         -m_driverController.getLeftX() * m_maxSpeed * m_driveDirectionMultiplier)
                     .withRotationalRate(-m_driverController.getRightX() * m_maxAngularRate)));
     m_turretSubsystem.setDefaultCommand(
-        m_turretSubsystem.aimAtFixedFieldTargetCommand(m_drivetrain::getDrivePose2d));
+        m_turretSubsystem.aimAtFixedFieldTargetCommand(
+            m_drivetrain::getDrivePose2d, m_drivetrain::getDriveSpeed));
 
     // Schedule `ExampleCommand` when `exampleCondition` changes to `true`
     new Trigger(m_exampleSubsystem::exampleCondition)
@@ -102,6 +103,6 @@ public class RobotContainer {
    * @return the command to run in autonomous
    */
   public Command getAutonomousCommand() {
-    return Autos.turnTurretNinetyDegreesAndBack(m_turretSubsystem);
+    return Autos.driveFortyInchSquare(m_drivetrain);
   }
 }

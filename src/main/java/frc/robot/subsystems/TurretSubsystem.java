@@ -4,14 +4,17 @@
 
 package frc.robot.subsystems;
 
+import static frc.robot.Constants.TurretConstants.kAimPositionToleranceDegrees;
 import static frc.robot.Constants.TurretConstants.kClockwiseMotorDirection;
 import static frc.robot.Constants.TurretConstants.kMotorRotationsPerTurretRotation;
 import static frc.robot.Constants.TurretConstants.kPositionToleranceDegrees;
+import static frc.robot.Constants.TurretConstants.kTurretAimVelocityFeedforward;
 import static frc.robot.Constants.TurretConstants.kTurretAimMaxOutput;
 import static frc.robot.Constants.TurretConstants.kTurretKd;
 import static frc.robot.Constants.TurretConstants.kTurretKi;
 import static frc.robot.Constants.TurretConstants.kTurretKp;
 import static frc.robot.Constants.TurretConstants.kTurretMotorCanId;
+import static frc.robot.Constants.TurretConstants.kTurretMovingTargetVelocityThresholdDegreesPerSecond;
 import static frc.robot.Constants.TurretConstants.kTurretUnwindMaxOutput;
 
 import java.util.function.Supplier;
@@ -21,6 +24,8 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
@@ -47,7 +52,7 @@ public class TurretSubsystem extends SubsystemBase {
     double targetMotorRotations =
         direction * kClockwiseMotorDirection * degreesToMotorRotations(degrees);
     PIDController controller = new PIDController(kTurretKp, kTurretKi, kTurretKd);
-    controller.setTolerance(getMotorToleranceRotations());
+    controller.setTolerance(getPositionMotorToleranceRotations());
 
     return runEnd(
             () -> driveTowardTarget(targetMotorRotations, speed, controller),
@@ -57,19 +62,29 @@ public class TurretSubsystem extends SubsystemBase {
   }
 
   public Command aimAtFixedFieldTargetCommand(Supplier<Pose2d> robotPoseSupplier) {
+    return aimAtFixedFieldTargetCommand(robotPoseSupplier, ChassisSpeeds::new);
+  }
+
+  public Command aimAtFixedFieldTargetCommand(
+      Supplier<Pose2d> robotPoseSupplier, Supplier<ChassisSpeeds> chassisSpeedsSupplier) {
     PIDController controller = new PIDController(kTurretKp, kTurretKi, kTurretKd);
-    controller.setTolerance(getMotorToleranceRotations());
+    controller.setTolerance(getAimMotorToleranceRotations());
 
     return runEnd(
-            () -> aimAtFixedFieldTarget(robotPoseSupplier.get(), controller),
+            () ->
+                aimAtFixedFieldTarget(
+                    robotPoseSupplier.get(), chassisSpeedsSupplier.get(), controller),
             m_turretMotor::stopMotor)
         .beforeStarting(controller::reset);
   }
 
-  private void aimAtFixedFieldTarget(Pose2d robotPose, PIDController controller) {
+  private void aimAtFixedFieldTarget(
+      Pose2d robotPose, ChassisSpeeds chassisSpeeds, PIDController controller) {
     double currentTurretAngleDegrees = motorRotationsToTurretDegrees(m_turretEncoder.getPosition());
     double targetTurretAngleDegrees =
         TurretAiming.calculateTargetAngleDegrees(robotPose, currentTurretAngleDegrees);
+    double targetVelocityDegreesPerSecond =
+        TurretAiming.calculateTargetAngularVelocityDegreesPerSecond(robotPose, chassisSpeeds);
     double maxOutput =
         TurretAiming.shouldUseUnwindOutput(currentTurretAngleDegrees, targetTurretAngleDegrees)
             ? kTurretUnwindMaxOutput
@@ -77,25 +92,60 @@ public class TurretSubsystem extends SubsystemBase {
 
     double targetMotorRotations =
         kClockwiseMotorDirection * degreesToMotorRotations(targetTurretAngleDegrees);
-    driveTowardTarget(targetMotorRotations, maxOutput, controller);
+    double aimMotorToleranceRotations = getAimMotorToleranceRotations();
+    boolean stopAtTolerance =
+        Math.abs(targetVelocityDegreesPerSecond)
+            <= kTurretMovingTargetVelocityThresholdDegreesPerSecond;
+    double feedforwardOutput =
+        kClockwiseMotorDirection * targetVelocityDegreesPerSecond * kTurretAimVelocityFeedforward;
+
+    driveTowardTarget(
+        targetMotorRotations,
+        maxOutput,
+        controller,
+        stopAtTolerance,
+        feedforwardOutput,
+        aimMotorToleranceRotations);
+    publishAimTelemetry(
+        robotPose,
+        currentTurretAngleDegrees,
+        targetTurretAngleDegrees,
+        targetVelocityDegreesPerSecond);
   }
 
   private void driveTowardTarget(
       double targetMotorRotations, double maxSpeed, PIDController controller) {
+    driveTowardTarget(
+        targetMotorRotations,
+        maxSpeed,
+        controller,
+        true,
+        0.0,
+        getPositionMotorToleranceRotations());
+  }
+
+  private void driveTowardTarget(
+      double targetMotorRotations,
+      double maxSpeed,
+      PIDController controller,
+      boolean stopAtTolerance,
+      double feedforwardOutput,
+      double toleranceMotorRotations) {
     double currentPosition = m_turretEncoder.getPosition();
 
-    if (Math.abs(targetMotorRotations - currentPosition) <= getMotorToleranceRotations()) {
+    if (stopAtTolerance
+        && Math.abs(targetMotorRotations - currentPosition) <= toleranceMotorRotations) {
       m_turretMotor.stopMotor();
       return;
     }
 
     double pidOutput = controller.calculate(currentPosition, targetMotorRotations);
-    m_turretMotor.set(clamp(pidOutput, -maxSpeed, maxSpeed));
+    m_turretMotor.set(clamp(pidOutput + feedforwardOutput, -maxSpeed, maxSpeed));
   }
 
   private boolean atTarget(double targetMotorRotations) {
     return Math.abs(targetMotorRotations - m_turretEncoder.getPosition())
-        <= getMotorToleranceRotations();
+        <= getPositionMotorToleranceRotations();
   }
 
   private static double degreesToMotorRotations(double degrees) {
@@ -106,8 +156,31 @@ public class TurretSubsystem extends SubsystemBase {
     return motorRotations / kClockwiseMotorDirection / kMotorRotationsPerTurretRotation * 360.0;
   }
 
-  private static double getMotorToleranceRotations() {
-    return degreesToMotorRotations(kPositionToleranceDegrees);
+  private static double getPositionMotorToleranceRotations() {
+    return getMotorToleranceRotations(kPositionToleranceDegrees);
+  }
+
+  private static double getAimMotorToleranceRotations() {
+    return getMotorToleranceRotations(kAimPositionToleranceDegrees);
+  }
+
+  private static double getMotorToleranceRotations(double toleranceDegrees) {
+    return degreesToMotorRotations(toleranceDegrees);
+  }
+
+  private static void publishAimTelemetry(
+      Pose2d robotPose,
+      double currentTurretAngleDegrees,
+      double targetTurretAngleDegrees,
+      double targetVelocityDegreesPerSecond) {
+    SmartDashboard.putNumber("Turret/CurrentAngleDeg", currentTurretAngleDegrees);
+    SmartDashboard.putNumber("Turret/TargetAngleDeg", targetTurretAngleDegrees);
+    SmartDashboard.putNumber(
+        "Turret/ErrorDeg", targetTurretAngleDegrees - currentTurretAngleDegrees);
+    SmartDashboard.putNumber("Turret/TargetVelocityDegPerSec", targetVelocityDegreesPerSecond);
+    SmartDashboard.putNumber("Turret/PoseXInches", robotPose.getX() * 39.3700787402);
+    SmartDashboard.putNumber("Turret/PoseYInches", robotPose.getY() * 39.3700787402);
+    SmartDashboard.putNumber("Turret/PoseHeadingDeg", robotPose.getRotation().getDegrees());
   }
 
   private static double clamp(double value, double min, double max) {

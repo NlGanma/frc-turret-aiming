@@ -23,14 +23,18 @@ public final class Constants {
     public static final double kMotorRotationsPerTurretRotation = 34.6;
     public static final double kClockwiseMotorDirection = 1.0;
     public static final double kPositionToleranceDegrees = 1.0;
+    public static final double kAimPositionToleranceDegrees = 0.25;
     public static final double kTurretKp = 0.1285;
     public static final double kTurretKi = 0.0;
     public static final double kTurretKd = 0.0024;
     public static final double kFixedTargetXInches = 0.0;
-    public static final double kFixedTargetYInches = 20.0;
+    public static final double kFixedTargetYInches = 120.0;
     public static final double kTurretZeroFieldHeadingDegrees = 90.0;
     public static final double kTurretAimMaxOutput = 0.6;
     public static final double kTurretUnwindMaxOutput = 1.0;
+    // Percent motor output added per turret degree/second of moving-target demand.
+    public static final double kTurretAimVelocityFeedforward = 0.0005;
+    public static final double kTurretMovingTargetVelocityThresholdDegreesPerSecond = 5.0;
     public static final double kTurretMinAngleDegrees = -360.0;
     public static final double kTurretMaxAngleDegrees = 360.0;
   }
