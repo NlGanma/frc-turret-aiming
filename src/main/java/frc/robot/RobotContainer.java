@@ -7,6 +7,8 @@ package frc.robot;
 import static edu.wpi.first.units.Units.MetersPerSecond;
 import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static edu.wpi.first.units.Units.RotationsPerSecond;
+import static frc.robot.Constants.HoodConstants.kHoodStationaryRotationRadiansPerSecond;
+import static frc.robot.Constants.HoodConstants.kHoodStationaryTranslationMetersPerSecond;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
@@ -17,8 +19,11 @@ import frc.robot.commands.ExampleCommand;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.ExampleSubsystem;
+import frc.robot.subsystems.FlywheelSubsystem;
+import frc.robot.subsystems.HoodSubsystem;
 import frc.robot.subsystems.TurretSubsystem;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -44,6 +49,8 @@ public class RobotContainer {
   // The robot's subsystems and commands are defined here...
   private final ExampleSubsystem m_exampleSubsystem = new ExampleSubsystem();
   private final TurretSubsystem m_turretSubsystem = new TurretSubsystem();
+  private final FlywheelSubsystem m_flywheelSubsystem = new FlywheelSubsystem();
+  private final HoodSubsystem m_hoodSubsystem = new HoodSubsystem();
   private final CommandSwerveDrivetrain m_drivetrain = TunerConstants.createDrivetrain();
 
   // Replace with CommandPS4Controller or CommandJoystick if needed
@@ -82,6 +89,8 @@ public class RobotContainer {
     m_turretSubsystem.setDefaultCommand(
         m_turretSubsystem.aimAtFixedFieldTargetCommand(
             m_drivetrain::getDrivePose2d, m_drivetrain::getDriveSpeed));
+    m_hoodSubsystem.setDefaultCommand(
+        m_hoodSubsystem.aimAtFixedFieldTargetCommand(m_drivetrain::getDrivePose2d));
 
     // Schedule `ExampleCommand` when `exampleCondition` changes to `true`
     new Trigger(m_exampleSubsystem::exampleCondition)
@@ -95,6 +104,29 @@ public class RobotContainer {
                   m_driveDirectionMultiplier *= -1.0;
                   SmartDashboard.putBoolean("Drive Inverted", m_driveDirectionMultiplier < 0);
                 }));
+
+    m_driverController.rightTrigger(0.5).whileTrue(m_flywheelSubsystem.runFlywheelCommand());
+
+    m_driverController
+        .rightBumper()
+        .onTrue(
+            Commands.runOnce(
+                () -> {
+                  boolean isStationary = isChassisStationary();
+                  SmartDashboard.putBoolean("Hood/RBToggleAccepted", isStationary);
+                  if (isStationary) {
+                    m_hoodSubsystem.toggleMinMaxAngleOverride();
+                  }
+                },
+                m_hoodSubsystem));
+  }
+
+  private boolean isChassisStationary() {
+    ChassisSpeeds chassisSpeeds = m_drivetrain.getDriveSpeed();
+    return Math.hypot(chassisSpeeds.vxMetersPerSecond, chassisSpeeds.vyMetersPerSecond)
+            <= kHoodStationaryTranslationMetersPerSecond
+        && Math.abs(chassisSpeeds.omegaRadiansPerSecond)
+            <= kHoodStationaryRotationRadiansPerSecond;
   }
 
   /**

@@ -25,6 +25,10 @@ change.
 - Teleop default drive runs the CTRE swerve drivetrain field-centrically.
 - Driver controls match frankenbot: left stick translates, right stick X rotates, and B toggles
   translation inversion.
+- Driver RT runs the flywheel at `1000 RPM` while held; releasing RT disables output and lets the
+  flywheel coast down.
+- The hood automatically tracks the same fixed field target as the turret, mapping target distance
+  to `30°` through `45°`.
 
 ## Swerve Chassis
 
@@ -96,6 +100,63 @@ Constants live in `src/main/java/frc/robot/Constants.java`.
 
 If the turret moves counterclockwise when commanded clockwise, flip `kClockwiseMotorDirection`
 instead of changing call sites.
+
+## Flywheel Subsystem
+
+- Main file: `src/main/java/frc/robot/subsystems/FlywheelSubsystem.java`.
+- Motor controller: CTRE TalonFX
+- CAN ID: `44`
+- Driver control: Xbox right trigger on port `0`, active above `0.5`
+- Target velocity: `1000 RPM`
+- The subsystem uses Phoenix 6 `VelocityVoltage` closed-loop control with the TalonFX integrated
+  sensor.
+- Releasing RT calls `stopMotor()` and uses coast neutral mode; the flywheel is not actively braked
+  to zero.
+- Direction is controlled by `kFlywheelInverted`; flip that constant if positive `1000 RPM` spins
+  the wrong direction.
+- Flywheel tuning constants:
+  - `kFlywheelKp = 0.0`
+  - `kFlywheelKi = 0.0`
+  - `kFlywheelKd = 0.0`
+  - `kFlywheelKs = 0.0`
+  - `kFlywheelKv = 0.12`
+  - `kFlywheelKa = 0.0`
+- SmartDashboard publishes `Flywheel/Active`, `Flywheel/TargetRpm`, and
+  `Flywheel/MeasuredRpm`.
+
+## Hood Subsystem
+
+- Main file: `src/main/java/frc/robot/subsystems/HoodSubsystem.java`.
+- Motor controller: CTRE TalonFX/Kraken-compatible Phoenix 6 device
+- CAN ID: `45`
+- Gear ratio: `225:20`, or `11.25` motor rotations per `1` hood rotation
+- The hood travel range is `30°` to `45°`; `30°` is the physical lower stop.
+- The hood uses Phoenix 6 `PositionVoltage` closed-loop control with FOC disabled.
+- The TalonFX integrated sensor is configured with `SensorToMechanismRatio = 11.25`, so position
+  requests and soft limits are in hood mechanism rotations.
+- On startup, the hood encoder is seeded to `30°`; make sure the hood is physically at the lower
+  stop before booting unless a homing or absolute sensor is added.
+- The hood default command aims continuously at the same fixed field point as the turret,
+  `(0, 120 in)`, using drivetrain pose.
+- Driver RB toggles a manual hood override between `30°` and `45°`, but only when drivetrain
+  chassis speeds are below `0.05 m/s` translation and `0.05 rad/s` rotation. While the manual
+  override is active, the hood holds the toggled min/max angle instead of distance aiming.
+- Distance-to-angle map:
+  - `24 in` or closer commands `30°`
+  - `120 in` or farther commands `45°`
+  - distances between those values linearly interpolate between `30°` and `45°`
+- Direction is controlled by `kHoodInverted`; flip that constant if the hood moves the wrong way.
+- Initial hood tuning constants:
+  - `kHoodKp = 24.0`
+  - `kHoodKi = 0.0`
+  - `kHoodKd = 0.0`
+  - `kHoodKs = 0.0`
+  - `kHoodKv = 0.0`
+  - `kHoodKa = 0.0`
+  - `kHoodMaxVoltage = 4.0`
+- SmartDashboard publishes `Hood/DistanceInches`, `Hood/TargetAngleDeg`,
+  `Hood/CurrentAngleDeg`, `Hood/ErrorDeg`, `Hood/ManualOverride`, and
+  `Hood/RBToggleAccepted`.
 
 ## Code Conventions
 

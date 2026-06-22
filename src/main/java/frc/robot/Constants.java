@@ -17,6 +17,40 @@ public final class Constants {
     public static final int kDriverControllerPort = 0;
   }
 
+  public static class FlywheelConstants {
+    public static final int kFlywheelMotorCanId = 44;
+    public static final double kFlywheelTargetRpm = 1000.0;
+    public static final boolean kFlywheelInverted = false;
+    public static final double kFlywheelKp = 0.0;
+    public static final double kFlywheelKi = 0.0;
+    public static final double kFlywheelKd = 0.0;
+    public static final double kFlywheelKs = 0.0;
+    public static final double kFlywheelKv = 0.12;
+    public static final double kFlywheelKa = 0.0;
+  }
+
+  public static class HoodConstants {
+    public static final int kHoodMotorCanId = 45;
+    public static final double kMotorSprocketTeeth = 20.0;
+    public static final double kHoodSprocketTeeth = 225.0;
+    public static final double kMotorRotationsPerHoodRotation =
+        kHoodSprocketTeeth / kMotorSprocketTeeth;
+    public static final double kHoodMinAngleDegrees = 30.0;
+    public static final double kHoodMaxAngleDegrees = 45.0;
+    public static final double kHoodNearDistanceInches = 24.0;
+    public static final double kHoodFarDistanceInches = 120.0;
+    public static final boolean kHoodInverted = false;
+    public static final double kHoodMaxVoltage = 4.0;
+    public static final double kHoodKp = 24.0;
+    public static final double kHoodKi = 0.0;
+    public static final double kHoodKd = 0.0;
+    public static final double kHoodKs = 0.0;
+    public static final double kHoodKv = 0.0;
+    public static final double kHoodKa = 0.0;
+    public static final double kHoodStationaryTranslationMetersPerSecond = 0.05;
+    public static final double kHoodStationaryRotationRadiansPerSecond = 0.05;
+  }
+
   // This is the turret constants
   public static class TurretConstants {
     public static final int kTurretMotorCanId = 5;
